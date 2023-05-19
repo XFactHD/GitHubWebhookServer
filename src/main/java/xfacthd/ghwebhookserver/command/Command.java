@@ -18,4 +18,16 @@ public abstract class Command
     }
 
     public abstract void execute(String input, CommandContext ctx);
+
+    public String getPrefix()
+    {
+        return prefix;
+    }
+
+    public String getArgumentList()
+    {
+        return null;
+    }
+
+    public abstract String getDescription();
 }

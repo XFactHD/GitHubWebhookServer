@@ -3,9 +3,12 @@ package xfacthd.ghwebhookserver.command.impl;
 import xfacthd.ghwebhookserver.command.Command;
 import xfacthd.ghwebhookserver.command.CommandContext;
 
-public class SkipCommand extends Command
+public final class SkipCommand extends Command
 {
-    public SkipCommand() { super("skip"); }
+    public SkipCommand()
+    {
+        super("skip");
+    }
 
     @Override
     public void execute(String input, CommandContext ctx)
@@ -17,5 +20,11 @@ public class SkipCommand extends Command
         }
 
         ctx.display().notifySkipIssueButton(true);
+    }
+
+    @Override
+    public String getDescription()
+    {
+        return "Skip the entry that is currently being displayed";
     }
 }

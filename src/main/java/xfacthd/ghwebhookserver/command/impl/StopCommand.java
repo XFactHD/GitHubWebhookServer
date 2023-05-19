@@ -4,9 +4,12 @@ import xfacthd.ghwebhookserver.Main;
 import xfacthd.ghwebhookserver.command.Command;
 import xfacthd.ghwebhookserver.command.CommandContext;
 
-public class StopCommand extends Command
+public final class StopCommand extends Command
 {
-    public StopCommand() { super("stop"); }
+    public StopCommand()
+    {
+        super("stop");
+    }
 
     @Override
     public void execute(String input, CommandContext ctx)
@@ -18,5 +21,11 @@ public class StopCommand extends Command
         }
 
         Main.stop();
+    }
+
+    @Override
+    public String getDescription()
+    {
+        return "Gracefully shut down the server";
     }
 }

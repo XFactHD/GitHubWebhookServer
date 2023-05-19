@@ -82,10 +82,19 @@ public class Main
         LOGGER.info("Terminated");
     }
 
-    public static void stop() { running = false; }
+    public static void stop()
+    {
+        running = false;
+    }
+
+    public static List<Command> getCommands()
+    {
+        return COMMANDS;
+    }
 
     private static void registerCommands()
     {
+        COMMANDS.add(new HelpCommand());
         COMMANDS.add(new StopCommand());
         COMMANDS.add(new TestCommand());
         COMMANDS.add(new SkipCommand());
