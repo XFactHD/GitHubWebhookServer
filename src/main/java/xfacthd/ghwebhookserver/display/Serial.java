@@ -63,9 +63,13 @@ public class Serial
 
     public static void stop()
     {
-        if (!running && !failedStart)
+        if (!running)
         {
-            throw new IllegalStateException("Serial not started!");
+            if (!failedStart)
+            {
+                throw new IllegalStateException("Serial not started!");
+            }
+            return;
         }
 
         LOGGER.info("Shutting down serial");
