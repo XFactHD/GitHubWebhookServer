@@ -23,13 +23,13 @@ public final class HelpCommand extends Command
         StringBuilder builder = new StringBuilder("List of available commands:");
         for (Command cmd : Main.getCommands())
         {
-            builder.append("\n - ").append(cmd.getPrefix());
+            builder.append("\n\t- ").append(cmd.getPrefix());
             String args = cmd.getArgumentList();
             if (args != null)
             {
                 builder.append(" ").append(args);
             }
-            builder.append("\t- ").append(cmd.getDescription());
+            builder.append(" - ").append(cmd.getDescription());
         }
         LOGGER.info(builder.toString());
     }
