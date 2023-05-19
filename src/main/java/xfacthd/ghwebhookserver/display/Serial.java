@@ -11,13 +11,20 @@ import java.nio.charset.StandardCharsets;
 public class Serial
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(Serial.class);
-    private static Serial instance;
+    private static boolean running = false;
+    private static boolean failedStart = false;
+    private static SerialComManager scm;
+    private static long portHandle;
 
-    private final SerialComManager scm;
-    private final long portHandle;
-
-    private Serial(String port)
+    public static void start(String port)
     {
+        if (running)
+        {
+            throw new IllegalStateException("Serial already started!");
+        }
+
+        LOGGER.info("Starting serial port");
+
         try
         {
             scm = new SerialComManager();
@@ -41,63 +48,57 @@ public class Serial
                     false
             );
         }
-        catch (IOException e)
+        catch (Throwable t)
         {
-            throw new RuntimeException("An error occurred while initializing serial communication", e);
+            LOGGER.error("An error occurred while initializing serial communication", t);
+
+            failedStart = true;
+            return;
         }
+
+        running = true;
+        failedStart = false;
+        LOGGER.info("Serial port started");
     }
 
-    private void send(String data)
+    public static void stop()
     {
-        try
+        if (!running && !failedStart)
         {
-            scm.writeString(portHandle, data, StandardCharsets.US_ASCII, 0);
+            throw new IllegalStateException("Serial not started!");
         }
-        catch (IOException e)
-        {
-            LOGGER.error("An error occured while sending serial data");
-            e.printStackTrace();
-        }
-    }
 
-    private void destroy()
-    {
+        LOGGER.info("Shutting down serial");
         try
         {
             scm.closeComPort(portHandle);
         }
         catch (SerialComException e)
         {
-            throw new RuntimeException("An error occured while closing the serial port", e);
+            LOGGER.error("An error occured while closing the serial port", e);
         }
-    }
-
-
-
-    public static void start(String port)
-    {
-        if (instance != null)
-        {
-            throw new IllegalStateException("Serial already started!");
-        }
-
-        LOGGER.info("Starting serial port");
-        instance = new Serial(port);
-        LOGGER.info("Serial port started");
-    }
-
-    public static void stop()
-    {
-        if (instance == null)
-        {
-            throw new IllegalStateException("Serial not started!");
-        }
-
-        LOGGER.info("Shutting down serial");
-        instance.destroy();
-        instance = null;
+        running = false;
         LOGGER.info("Serial shut down");
     }
 
-    public static void sendData(String data) { instance.send(data); }
+    public static void sendData(String data)
+    {
+        if (!running)
+        {
+            if (!failedStart)
+            {
+                throw new IllegalStateException("Serial not started!");
+            }
+            return;
+        }
+
+        try
+        {
+            scm.writeString(portHandle, data, StandardCharsets.US_ASCII, 0);
+        }
+        catch (IOException e)
+        {
+            LOGGER.error("An error occured while sending serial data", e);
+        }
+    }
 }

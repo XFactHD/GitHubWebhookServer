@@ -76,7 +76,7 @@ public abstract class IssueWebhookListener implements HttpHandler
 
     protected abstract void handlePostData(JsonObject object);
 
-    private void sendResponse(HttpExchange exchange, int returnCode) throws IOException
+    private static void sendResponse(HttpExchange exchange, int returnCode) throws IOException
     {
         exchange.sendResponseHeaders(returnCode, 1);
 
@@ -89,7 +89,7 @@ public abstract class IssueWebhookListener implements HttpHandler
 
     private static byte[] readKey()
     {
-        try (Stream<String> lines = Files.lines(Path.of("./secret/key")))
+        try (Stream<String> lines = Files.lines(Path.of("./.secret/key")))
         {
             return lines.findFirst().orElseThrow().getBytes();
         }
