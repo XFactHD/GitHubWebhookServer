@@ -24,7 +24,7 @@ public class GPIO
     private static final int PIN_SWITCH = 21; //Header pin 40
     private static final int PIN_PAUSE_SWITCH = 20; //Header pin 38
     private static final int PIN_SKIP = 16; //Header pin 36
-    private static final int PIN_MOSFET = 26; //Header pin 37
+    private static final int PIN_MOSFET = 12; //Header pin 32
 
     private static GPIOListener listener;
     private static boolean enableGpio = false;
