@@ -162,7 +162,7 @@ public class GPIO
         {
             Process process = Runtime.getRuntime().exec("uname -m");
             String arch = new String(process.getInputStream().readAllBytes());
-            if (arch.startsWith("arm"))
+            if (arch.startsWith("arm") || arch.startsWith("aarch64"))
             {
                 return true;
             }
