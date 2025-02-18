@@ -186,12 +186,24 @@ public class IssueDisplay extends Thread
         }
         else
         {
-            Display.printText(text.substring(currOffset, currOffset + maxLen));
-
-            if (currOffset + maxLen >= text.length())
+            if (currOffset >= text.length())
             {
+                Display.printText(" ".repeat(maxLen));
                 return 0;
             }
+
+            int end = currOffset + maxLen;
+            String dispText;
+            if (end > text.length())
+            {
+                dispText = text.substring(currOffset) + " ".repeat(end - text.length());
+            }
+            else
+            {
+                dispText = text.substring(currOffset, currOffset + maxLen);
+            }
+            Display.printText(dispText);
+
             return currOffset + 1;
         }
     }
