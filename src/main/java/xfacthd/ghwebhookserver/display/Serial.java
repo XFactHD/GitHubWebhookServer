@@ -1,11 +1,9 @@
 package xfacthd.ghwebhookserver.display;
 
-import com.serialpundit.core.SerialComException;
-import com.serialpundit.serial.SerialComManager;
+import com.fazecast.jSerialComm.SerialPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 public class Serial
@@ -13,10 +11,9 @@ public class Serial
     private static final Logger LOGGER = LoggerFactory.getLogger(Serial.class);
     private static boolean running = false;
     private static boolean failedStart = false;
-    private static SerialComManager scm;
-    private static long portHandle;
+    private static SerialPort port;
 
-    public static void start(String port)
+    public static void start(String portName)
     {
         if (running)
         {
@@ -27,26 +24,20 @@ public class Serial
 
         try
         {
-            scm = new SerialComManager();
-            portHandle = scm.openComPort(port, true, true, true);
+            port = SerialPort.getCommPort(portName);
 
-            scm.configureComPortData(
-                    portHandle,
-                    SerialComManager.DATABITS.DB_8,
-                    SerialComManager.STOPBITS.SB_1,
-                    SerialComManager.PARITY.P_ODD,
-                    SerialComManager.BAUDRATE.B9600,
-                    0
-            );
+            port.setBaudRate(9600);
+            port.setNumDataBits(8);
+            port.setNumStopBits(SerialPort.ONE_STOP_BIT);
+            port.setParity(SerialPort.ODD_PARITY);
+            port.setFlowControl(SerialPort.FLOW_CONTROL_CTS_ENABLED | SerialPort.FLOW_CONTROL_RTS_ENABLED);
 
-            scm.configureComPortControl(
-                    portHandle,
-                    SerialComManager.FLOWCONTROL.RTS_CTS,
-                    'x',
-                    'x',
-                    false,
-                    false
-            );
+            if (!port.openPort())
+            {
+                LOGGER.error("An error occurred while initializing serial communication: {}", port.getLastErrorCode());
+                failedStart = true;
+                return;
+            }
         }
         catch (Throwable t)
         {
@@ -73,13 +64,9 @@ public class Serial
         }
 
         LOGGER.info("Shutting down serial");
-        try
+        if (!port.closePort())
         {
-            scm.closeComPort(portHandle);
-        }
-        catch (SerialComException e)
-        {
-            LOGGER.error("An error occured while closing the serial port", e);
+            LOGGER.error("An error occured while closing the serial port: {}", port.getLastErrorCode());
         }
         running = false;
         LOGGER.info("Serial shut down");
@@ -96,13 +83,10 @@ public class Serial
             return;
         }
 
-        try
+        byte[] bytes = data.getBytes(StandardCharsets.US_ASCII);
+        if (port.writeBytes(bytes, bytes.length) == -1)
         {
-            scm.writeString(portHandle, data, StandardCharsets.US_ASCII, 0);
-        }
-        catch (IOException e)
-        {
-            LOGGER.error("An error occured while sending serial data", e);
+            LOGGER.error("An error occured while sending serial data: {}", port.getLastErrorCode());
         }
     }
 }
