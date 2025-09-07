@@ -6,17 +6,29 @@ plugins {
 group 'xfacthd.ghwhserver'
 version '1.0'
 
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
 repositories {
     mavenCentral()
+    maven {
+        url = 'https://libraries.minecraft.net'
+        content {
+            includeGroup('com.mojang')
+        }
+    }
 }
 
 dependencies {
-    implementation('com.google.code.gson:gson:2.9.0')
-    implementation('com.fazecast:jSerialComm:2.11.0')
-    implementation('commons-codec:commons-codec:1.15')
-    implementation('com.pi4j:pi4j-core:2.1.1')
-    implementation('com.pi4j:pi4j-plugin-pigpio:2.1.1')
-    implementation('org.slf4j:slf4j-simple:1.7.36')
+    implementation("com.google.code.gson:gson:${gson_version}")
+    implementation("com.fazecast:jSerialComm:${jserialcomm_version}")
+    implementation("commons-codec:commons-codec:${commons_codec_version}")
+    implementation("com.pi4j:pi4j-core:${pi4j_version}")
+    implementation("com.pi4j:pi4j-plugin-pigpio:${pi4j_version}")
+    implementation("org.slf4j:slf4j-simple:${slf4j_version}")
+    implementation("io.javalin:javalin:${javalin_version}")
+    implementation("com.mojang:datafixerupper:${dfu_version}")
+    implementation("net.sf.jopt-simple:jopt-simple:${jopt_simple_version}")
+    implementation("org.jetbrains:annotations:${jb_anno_version}")
 }
 
 jar {

@@ -1,8 +1,8 @@
 package xfacthd.ghwebhookserver.command;
 
-import com.sun.net.httpserver.HttpServer;
+import io.javalin.Javalin;
 import xfacthd.ghwebhookserver.display.IssueDisplay;
 
 import java.util.List;
 
-public record CommandContext(HttpServer server, IssueDisplay display, List<String> cmdArgs) { }
+public record CommandContext(CommandHandler handler, Javalin server, IssueDisplay display, List<String> cmdArgs) { }

@@ -2,17 +2,17 @@ package xfacthd.ghwebhookserver.display;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import xfacthd.ghwebhookserver.gpio.GPIO;
-import xfacthd.ghwebhookserver.util.Either;
-import xfacthd.ghwebhookserver.util.Util;
 import xfacthd.ghwebhookserver.data.Issue;
+import xfacthd.ghwebhookserver.display.gpio.GPIO;
+import xfacthd.ghwebhookserver.util.Util;
 
 import java.time.Duration;
 import java.util.Queue;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
-public class IssueDisplay extends Thread
+public final class IssueDisplay extends Display implements Consumer<Issue>
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(IssueDisplay.class);
     private static final int LINE_LENGTH = 20;
@@ -26,46 +26,56 @@ public class IssueDisplay extends Thread
     private final Queue<Issue> issues = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean displaying = new AtomicBoolean(false);
     private final AtomicBoolean skipCurrent = new AtomicBoolean(false);
-    private final String comPort;
+    private final Thread thread;
     private boolean enabled = false;
     private long lastDisplayTime = 0;
 
-    public IssueDisplay(String comPort) { this.comPort = comPort; }
-
-    @Override
-    public void run()
+    public IssueDisplay(String comPort, boolean ignoreIO)
     {
-        LOGGER.info("Starting display");
-        Display.start(comPort);
-        GPIO.registerInputCallback(GPIO.NAME_SKIP_BTN, this::notifySkipIssueButton);
-        LOGGER.info("Display ready");
+        super(comPort, ignoreIO);
+        gpio.registerInputCallback(GPIO.NAME_SKIP_BTN, this::notifySkipIssueButton);
+        this.thread = Thread.ofPlatform().start(this::run);
+    }
+
+    private void run()
+    {
+        setCursorPos(0, 0);
+        printText("GitHubWebhookServer");
+        setCursorPos(1, 0);
+        printText("v1");
+        Util.sleep(2000);
+        clearDisplay();
+        Util.sleep(100);
 
         while (running.get())
         {
-            if (waitForDisplayActive()) { break; }
+            if (waitForDisplayActive()) break;
 
-            Either<Issue, Boolean> issue = retrieveIssue();
-            if (issue.hasRight() && issue.getRight())
+            boolean exit = switch (retrieveIssue())
             {
-                break;
-            }
-
-            if (issue.hasLeft() && driveDisplay(issue.getLeft()))
-            {
-                break;
-            }
+                case Result.Disabled(boolean shutdown) -> shutdown;
+                case Result.Success(Issue issue) -> driveDisplay(issue);
+            };
+            if (exit) break;
         }
 
+        stop();
+    }
+
+    @Override
+    protected void stop()
+    {
         LOGGER.info("Display shutting down");
-        Display.clearDisplay();
+        clearDisplay();
         LOGGER.info("Display cleared");
-        Display.disableDisplay();
+        disableDisplay();
         LOGGER.info("Display disabled");
-        Display.stop();
+        super.stop();
         LOGGER.info("Display shut down");
     }
 
-    public void enqueueIssue(Issue issue)
+    @Override
+    public void accept(Issue issue)
     {
         LOGGER.info("Enqueued new issue");
         issues.add(issue);
@@ -74,58 +84,64 @@ public class IssueDisplay extends Thread
     public void shutdown()
     {
         running.set(false);
-        interrupt();
+        thread.interrupt();
 
-        try { join(); }
+        try
+        {
+            thread.join();
+        }
         catch (InterruptedException ignore) { /* NOOP */ }
     }
 
     public void notifySkipIssueButton(boolean value)
     {
-        if (!value || !displaying.get()) { return; }
-
-        skipCurrent.set(true);
+        if (value && displaying.get())
+        {
+            skipCurrent.set(true);
+        }
     }
-
-
 
     private boolean waitForDisplayActive()
     {
-        while (!(enabled = Display.checkSwitchAndDisable()))
+        while (!(enabled = checkSwitchAndDisable()))
         {
             Util.sleep(10);
-
-            if (!running.get()) { return true; }
+            if (!running.get())
+            {
+                return true;
+            }
         }
         return false;
     }
 
-    private Either<Issue, Boolean> retrieveIssue()
+    private Result retrieveIssue()
     {
         Issue issue;
         do
         {
             Util.sleep(10);
 
-            enabled = Display.checkSwitchAndDisable();
-            if (!enabled || !running.get()) { return Either.right(!running.get()); }
+            enabled = checkSwitchAndDisable();
+            if (!enabled || !running.get())
+            {
+                return new Result.Disabled(!running.get());
+            }
 
             issue = issues.poll();
-
-            if (issue == null && Display.isActive() && System.currentTimeMillis() - lastDisplayTime > DISPLAY_TIMEOUT)
+            if (issue == null && isActive() && System.currentTimeMillis() - lastDisplayTime > DISPLAY_TIMEOUT)
             {
-                Display.disableDisplay();
+                disableDisplay();
             }
         }
         while (issue == null);
 
-        return Either.left(issue);
+        return new Result.Success(issue);
     }
 
     private boolean driveDisplay(Issue issue)
     {
         LOGGER.info("Issue acquired, driving to display");
-        if (Display.enableDisplay(running::get))
+        if (enableDisplay(running::get))
         {
             LOGGER.info("Cancelled display cycle while starting display due to shutdown");
             return true;
@@ -135,8 +151,8 @@ public class IssueDisplay extends Thread
         displaying.set(true);
 
         String numText = String.format("#%d", issue.number());
-        Display.setCursorPos(0, LINE_LENGTH - numText.length());
-        Display.printText(numText);
+        setCursorPos(0, LINE_LENGTH - numText.length());
+        printText(numText);
 
         int maxRepoLen = LINE_LENGTH - (numText.length() + 1);
 
@@ -145,10 +161,10 @@ public class IssueDisplay extends Thread
         int titleOffset = 0;
         for (int i = 0; i < JUMP_COUNT; i++)
         {
-            Display.setCursorPos(0, 0);
+            setCursorPos(0, 0);
             repoOffset = printScrollingText(issue.repo(), repoOffset, maxRepoLen, firstPrint);
 
-            Display.setCursorPos(1, 0);
+            setCursorPos(1, 0);
             titleOffset = printScrollingText(issue.title(), titleOffset, LINE_LENGTH, firstPrint);
 
             firstPrint = false;
@@ -168,7 +184,7 @@ public class IssueDisplay extends Thread
         }
 
         LOGGER.info("Display cycle completed, clearing display");
-        Display.clearDisplay();
+        clearDisplay();
 
         LOGGER.info("Display cleared, blanking");
         return Util.sleepSliced(BLANKING_TIME, running::get);
@@ -180,7 +196,7 @@ public class IssueDisplay extends Thread
         {
             if (firstCall)
             {
-                Display.printText(text);
+                printText(text);
             }
             return 0;
         }
@@ -188,7 +204,7 @@ public class IssueDisplay extends Thread
         {
             if (currOffset >= text.length())
             {
-                Display.printText(" ".repeat(maxLen));
+                printText(" ".repeat(maxLen));
                 return 0;
             }
 
@@ -202,11 +218,23 @@ public class IssueDisplay extends Thread
             {
                 dispText = text.substring(currOffset, currOffset + maxLen);
             }
-            Display.printText(dispText);
+            printText(dispText);
 
             return currOffset + 1;
         }
     }
 
-    private boolean shouldSkipIssue() { return skipCurrent.getAndSet(false); }
+    private boolean shouldSkipIssue()
+    {
+        return skipCurrent.getAndSet(false);
+    }
+
+    private sealed interface Result
+    {
+        record Success(xfacthd.ghwebhookserver.data.Issue issue) implements Result
+        {}
+
+        record Disabled(boolean shutdown) implements Result
+        {}
+    }
 }

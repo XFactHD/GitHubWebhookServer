@@ -1,27 +1,28 @@
-package xfacthd.ghwebhookserver.display;
+package xfacthd.ghwebhookserver.display.serial;
 
 import com.fazecast.jSerialComm.SerialPort;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
-public class Serial
+public final class Serial
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(Serial.class);
-    private static boolean running = false;
-    private static boolean failedStart = false;
-    private static SerialPort port;
 
-    public static void start(String portName)
+    private final boolean failedStart;
+    @Nullable
+    private final SerialPort port;
+    private boolean shutdown = false;
+
+    public Serial(String portName)
     {
-        if (running)
-        {
-            throw new IllegalStateException("Serial already started!");
-        }
-
         LOGGER.info("Starting serial port");
 
+        SerialPort port = null;
+        boolean failed = false;
         try
         {
             port = SerialPort.getCommPort(portName);
@@ -35,7 +36,7 @@ public class Serial
             if (!port.openPort())
             {
                 LOGGER.error("An error occurred while initializing serial communication: {}", port.getLastErrorCode());
-                failedStart = true;
+                failed = true;
                 return;
             }
         }
@@ -43,50 +44,51 @@ public class Serial
         {
             LOGGER.error("An error occurred while initializing serial communication", t);
 
-            failedStart = true;
+            failed = true;
             return;
         }
+        finally
+        {
+            this.port = failed ? null : port;
+            this.failedStart = failed;
+        }
 
-        running = true;
-        failedStart = false;
         LOGGER.info("Serial port started");
     }
 
-    public static void stop()
+    public void stop()
     {
-        if (!running)
-        {
-            if (!failedStart)
-            {
-                throw new IllegalStateException("Serial not started!");
-            }
-            return;
-        }
+        checkRunning();
+        shutdown = true;
+
+        if (failedStart) return;
 
         LOGGER.info("Shutting down serial");
-        if (!port.closePort())
+        if (!Objects.requireNonNull(port).closePort())
         {
             LOGGER.error("An error occured while closing the serial port: {}", port.getLastErrorCode());
         }
-        running = false;
         LOGGER.info("Serial shut down");
     }
 
-    public static void sendData(String data)
+    public void sendData(String data)
     {
-        if (!running)
-        {
-            if (!failedStart)
-            {
-                throw new IllegalStateException("Serial not started!");
-            }
-            return;
-        }
+        checkRunning();
+
+        if (failedStart) return;
 
         byte[] bytes = data.getBytes(StandardCharsets.US_ASCII);
-        if (port.writeBytes(bytes, bytes.length) == -1)
+        if (Objects.requireNonNull(port).writeBytes(bytes, bytes.length) == -1)
         {
             LOGGER.error("An error occured while sending serial data: {}", port.getLastErrorCode());
+        }
+    }
+
+    private void checkRunning()
+    {
+        if (shutdown)
+        {
+            throw new IllegalStateException("Serial was already shut down");
         }
     }
 }

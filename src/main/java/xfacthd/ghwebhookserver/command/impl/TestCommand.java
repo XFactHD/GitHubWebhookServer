@@ -18,7 +18,7 @@ public final class TestCommand extends Command
         String[] parts = input.split(" ");
         if (parts.length < 4)
         {
-            LOGGER.error("Invalid test issue description. Expected at least 3 arguments, got " + parts.length);
+            LOGGER.error("Invalid test issue description. Expected at least 3 arguments, got {}", parts.length);
         }
         else
         {
@@ -27,7 +27,7 @@ public final class TestCommand extends Command
             {
                 title.append(parts[i]).append(' ');
             }
-            ctx.display().enqueueIssue(new Issue(parts[1], Integer.parseInt(parts[2]), title.toString().trim()));
+            ctx.display().accept(new Issue(parts[1], Integer.parseInt(parts[2]), title.toString().trim()));
         }
     }
 

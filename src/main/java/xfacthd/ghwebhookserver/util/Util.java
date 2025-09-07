@@ -2,7 +2,7 @@ package xfacthd.ghwebhookserver.util;
 
 import java.util.function.BooleanSupplier;
 
-public class Util
+public final class Util
 {
     private static final int SLEEP_SLICE = 10;
 
@@ -35,4 +35,6 @@ public class Util
         }
         return false;
     }
+
+    private Util() {}
 }

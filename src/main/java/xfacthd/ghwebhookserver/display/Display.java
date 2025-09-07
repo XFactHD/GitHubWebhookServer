@@ -1,66 +1,105 @@
 package xfacthd.ghwebhookserver.display;
 
-import xfacthd.ghwebhookserver.gpio.GPIO;
+import xfacthd.ghwebhookserver.display.gpio.GPIO;
+import xfacthd.ghwebhookserver.display.serial.Serial;
 import xfacthd.ghwebhookserver.util.Util;
 
 import java.util.function.BooleanSupplier;
 
-public class Display
+abstract sealed class Display permits IssueDisplay
 {
     private static final int STARTUP_DELAY = 1500;
     private static final String ESC = String.valueOf((char) 0x1B);
     private static final String CLEAR_DISPLAY = ESC + "[2J";
-    private static boolean active = false;
 
-    public static void start(String port)
+    protected final GPIO gpio;
+    private final Serial serial;
+    private boolean active = false;
+    private boolean shutdown = false;
+
+    protected Display(String comPort, boolean ignoreIO)
     {
-        GPIO.init();
-        Serial.start(port);
+        this.gpio = GPIO.create(ignoreIO);
+        this.serial = new Serial(comPort);
     }
 
-    public static void stop()
+    protected void stop()
     {
-        Serial.stop();
-        GPIO.shutdown();
+        checkRunning();
+        shutdown = true;
+
+        serial.stop();
+        gpio.shutdown();
     }
 
-    public static void setCursorPos(int row, int col)
+    protected void setCursorPos(int row, int col)
     {
-        Serial.sendData(String.format("%s[%s;%sH", ESC, row + 1, col + 1));
+        checkRunning();
+        serial.sendData(String.format("%s[%s;%sH", ESC, row + 1, col + 1));
     }
 
-    public static void printText(String text) { Serial.sendData(text); }
-
-    public static void clearDisplay() { Serial.sendData(CLEAR_DISPLAY); }
-
-    public static boolean checkSwitchAndDisable()
+    protected void printText(String text)
     {
-        boolean enabled = GPIO.readSwitchPin();
+        checkRunning();
+        serial.sendData(text);
+    }
+
+    protected void clearDisplay()
+    {
+        checkRunning();
+        serial.sendData(CLEAR_DISPLAY);
+    }
+
+    protected boolean checkSwitchAndDisable()
+    {
+        checkRunning();
+
+        boolean enabled = gpio.readSwitchPin();
         if (active && !enabled)
         {
             disableDisplay();
         }
-        return enabled && GPIO.readPauseSwitchPin();
+        return enabled && gpio.readPauseSwitchPin();
     }
 
-    public static boolean isActive() { return active; }
-
-    public static boolean enableDisplay(BooleanSupplier running)
+    protected boolean isActive()
     {
-        if (active) { return false; }
+        checkRunning();
+        return active;
+    }
+
+    protected boolean enableDisplay(BooleanSupplier running)
+    {
+        checkRunning();
+
+        if (active) return false;
 
         switchDisplay(true);
         return Util.sleepSliced(STARTUP_DELAY, running);
     }
 
-    public static void disableDisplay() { switchDisplay(false); }
-
-    private static void switchDisplay(boolean enable)
+    protected void disableDisplay()
     {
+        checkRunning();
+        switchDisplay(false);
+    }
+
+    private void switchDisplay(boolean enable)
+    {
+        checkRunning();
+
         if (enable != active)
         {
             active = enable;
-            GPIO.writeDrivePin(enable);
+            gpio.writeDrivePin(enable);
+        }
+    }
+
+    private void checkRunning()
+    {
+        if (shutdown)
+        {
+            throw new IllegalStateException("Display was already shut down");
         }
     }
 }

@@ -1,6 +1,5 @@
 package xfacthd.ghwebhookserver.command.impl;
 
-import xfacthd.ghwebhookserver.Main;
 import xfacthd.ghwebhookserver.command.Command;
 import xfacthd.ghwebhookserver.command.CommandContext;
 
@@ -21,7 +20,7 @@ public final class HelpCommand extends Command
         }
 
         StringBuilder builder = new StringBuilder("List of available commands:");
-        for (Command cmd : Main.getCommands())
+        for (Command cmd : ctx.handler().getCommands())
         {
             builder.append("\n\t- ").append(cmd.getPrefix());
             String args = cmd.getArgumentList();

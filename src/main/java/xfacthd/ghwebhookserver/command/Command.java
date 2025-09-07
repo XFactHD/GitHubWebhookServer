@@ -1,5 +1,6 @@
 package xfacthd.ghwebhookserver.command;
 
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,7 +10,10 @@ public abstract class Command
 
     private final String prefix;
 
-    protected Command(String prefix) { this.prefix = "/" + prefix; }
+    protected Command(String prefix)
+    {
+        this.prefix = "/" + prefix;
+    }
 
     public final boolean matches(String input)
     {
@@ -24,6 +28,7 @@ public abstract class Command
         return prefix;
     }
 
+    @Nullable
     public String getArgumentList()
     {
         return null;
